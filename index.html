@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Proof Practice</title>
+    <style>
+        :root {
+            --primary: #2c5282; --secondary: #1a365d; --bg: #f7fafc; --text: #2d3748;
+            --accent: #ed8936; --correct: #38a169;
+            --pool-bg: #ebf8ff; --pool-border: #90cdf4;
+            --sol-bg: #fffaf0; --sol-border: #fbd38d;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
+
+        body { margin: 0; padding: 8px; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        header { text-align: center; padding-bottom: 4px; }
+        h1 { margin: 0 0 4px 0; font-size: 18px; color: var(--secondary); }
+
+        .top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 5px; }
+        .btn { background-color: var(--primary); color: white; border: none; padding: 6px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .btn-level { background-color: #cbd5e0; color: #4a5568; }
+        .btn-level.active { background-color: var(--accent); color: white; }
+        .btn-generate { background-color: #805ad5; }
+
+        .graph-area { display: flex; justify-content: center; align-items: center; height: 160px; background: white; border-radius: 12px; margin-bottom: 8px; box-shadow: inset 0 0 4px rgba(0,0,0,0.05); padding: 10px; overflow: hidden; }
+        .graph-area svg { height: 100%; max-width: 100%; transition: transform 0.3s ease; overflow: visible; }
+
+        .question-text { text-align: center; font-size: 14px; font-weight: 600; background: #e2e8f0; padding: 6px; border-radius: 4px; margin-bottom: 4px; }
+        
+        /* New Instruction Text Style */
+        .instructions-text { text-align: center; font-size: 12px; color: #4a5568; font-style: italic; margin-bottom: 8px; padding: 0 4px; }
+
+        .solution-box { flex: 1; background: var(--sol-bg); border: 2px solid var(--sol-border); border-radius: 6px; padding: 8px; padding-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 140px; }
+        .proof-table { display: flex; flex-direction: column; gap: 5px; }
+        .table-header { display: flex; font-weight: bold; font-size: 11px; color: #718096; padding-left: 22px; }
+        .proof-row { display: flex; align-items: center; gap: 6px; }
+        .row-idx { width: 16px; font-weight: bold; color: var(--accent); font-size: 13px; text-align: center; }
+        
+        .drop-zone { flex: 1; min-height: 38px; border: 2px dashed #cbd5e0; background: rgba(255,255,255,0.6); border-radius: 5px; display: flex; align-items: center; justify-content: center; padding: 2px; position: relative; touch-action: pan-y; }
+        .drop-zone:empty::before { content: attr(data-placeholder); color: #a0aec0; font-size: 11px; text-transform: capitalize; }
+
+        .choices-container { display: flex; gap: 8px; margin-top: 8px; height: 180px; }
+        .pool-column { flex: 1; background: var(--pool-bg); border: 2px solid var(--pool-border); border-radius: 6px; padding: 6px; padding-bottom: 30px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .pool-title { font-size: 12px; font-weight: bold; color: #2b6cb0; text-transform: uppercase; border-bottom: 1px solid var(--pool-border); padding-bottom: 2px; margin-bottom: 2px; }
+        
+        .pool-items { display: flex; flex-direction: column; gap: 5px; }
+        
+        .drag-card { background: white; border: 1px solid #cbd5e0; padding: 6px; border-radius: 4px; font-size: 12px; cursor: grab; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-align: center; width: 100%; z-index: 10; touch-action: none; }
+        .drag-card.dragging { opacity: 0.4; }
+        .drag-card.used { opacity: 0.25; pointer-events: none; }
+
+        .correct-row .drop-zone { border-color: var(--correct); background: #f0fff4; color: #22543d; }
+
+        .btn-check { background-color: #319795; width: 100%; padding: 12px; font-size: 15px; margin-top: 8px; }
+
+        #ghost-card { position: fixed; pointer-events: none; z-index: 9999; display: none; background: #fff3cd; border: 2px solid var(--accent); padding: 6px; border-radius: 4px; font-size: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.15); transform: translate(-50%, -50%); width: 150px; text-align: center; }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 12px; text-align: center; max-width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-text { font-size: 16px; margin-bottom: 20px; font-weight: bold; color: var(--secondary); }
+        .modal-btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📐 Converse of Pythagoras' Theorem</h1>
+        <div class="top-controls">
+            <div>
+                <button class="btn btn-level active" id="btn-lvl-1" onclick="setLevel(1)">Level 1</button>
+                <button class="btn btn-level" id="btn-lvl-2" onclick="setLevel(2)">Level 2</button>
+            </div>
+            <button class="btn btn-generate" onclick="generateNewQuestion()">🔄 Generate New</button>
+        </div>
+    </header>
+
+    <div class="graph-area" id="canvas-space"></div>
+    <div class="question-text" id="q-prompt"></div>
+    <div class="instructions-text" id="instructions-prompt"></div>
+
+    <div class="solution-box">
+        <div class="proof-table">
+            <div class="table-header">
+                <div style="flex:1;">Mathematical Statement</div>
+                <div style="flex:1; margin-left:8px;">Reason</div>
+            </div>
+            <div id="table-rows"></div>
+        </div>
+    </div>
+
+    <div class="choices-container" id="choices-area">
+        <div class="pool-column">
+            <div class="pool-title">Statements Pool</div>
+            <div id="statements-pool" class="pool-items"></div>
+        </div>
+        <div class="pool-column">
+            <div class="pool-title">Reasons Pool</div>
+            <div id="reasons-pool" class="pool-items"></div>
+        </div>
+    </div>
+
+    <button class="btn btn-check" onclick="gradeProof()">Check My Proof</button>
+
+    <div id="ghost-card"></div>
+
+    <div class="modal-overlay" id="feedback-modal">
+        <div class="modal-box">
+            <div class="modal-text" id="modal-message"></div>
+            <button class="modal-btn" id="modal-action-btn">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Engine State
+        let currentLevel = 1;
+        let activeDraggedData = null;
+        let currentQuestionData = {};
+        let isEngineInitialized = false;
+
+        const pythagoreanTriples = [
+            [3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], 
+            [9, 40, 41], [11, 60, 61], [12, 35, 37], [16, 63, 65],
+            [33, 56, 65], [48, 55, 73], [13, 84, 85], [36, 77, 85], [39, 80, 89]
+        ];
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        function setLevel(lvl) {
+            currentLevel = lvl;
+            document.getElementById('btn-lvl-1').classList.toggle('active', lvl === 1);
+            document.getElementById('btn-lvl-2').classList.toggle('active', lvl === 2);
+            generateNewQuestion();
+        }
+
+        function shuffleArray(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function getRandomLetters() {
+            let letters = shuffleArray(alphabet.split(''));
+            return [letters[0], letters[1], letters[2]];
+        }
+
+        function generateNewQuestion() {
+            const baseTriple = pythagoreanTriples[Math.floor(Math.random() * pythagoreanTriples.length)];
+            const multiplier = Math.floor(Math.random() * 3) + 1;
+            const s1 = baseTriple[0] * multiplier;
+            const s2 = baseTriple[1] * multiplier;
+            const hyp = baseTriple[2] * multiplier;
+
+            const [V1, V2, V3] = getRandomLetters(); // V2 is right angle
+            const rotationAngle = Math.floor(Math.random() * 360);
+
+            const svgHTML = `<svg viewBox="0 0 220 220" style="transform: rotate(${rotationAngle}deg);">
+                <polygon points="60,60 60,140 160,140" fill="none" stroke="#2d3748" stroke-width="2"/>
+                <text x="60" y="45" font-weight="bold" text-anchor="middle" transform="rotate(-${rotationAngle} 60 45)">${V1}</text>
+                <text x="45" y="155" font-weight="bold" text-anchor="middle" transform="rotate(-${rotationAngle} 45 155)">${V2}</text>
+                <text x="175" y="155" font-weight="bold" text-anchor="middle" transform="rotate(-${rotationAngle} 175 155)">${V3}</text>
+                <text x="45" y="100" fill="#4a5568" font-size="12" text-anchor="middle" transform="rotate(-${rotationAngle} 45 100)">${s1}</text>
+                <text x="110" y="160" fill="#4a5568" font-size="12" text-anchor="middle" transform="rotate(-${rotationAngle} 110 160)">${s2}</text>
+                <text x="125" y="90" fill="#4a5568" font-size="12" text-anchor="middle" transform="rotate(-${rotationAngle} 125 90)">${hyp}</text>
+            </svg>`;
+
+            const s1Sq = s1*s1; const s2Sq = s2*s2; const hypSq = hyp*hyp;
+            
+            const statements = [
+                { id: "step1", text: `${V1}${V2}² + ${V2}${V3}² = ${s1}² + ${s2}² = ${s1Sq + s2Sq}`, requires: [], reason: "Given" },
+                { id: "step2", text: `${V1}${V3}² = ${hyp}² = ${hypSq}`, requires: [], reason: "Given" },
+                { id: "step3", text: `${V1}${V2}² + ${V2}${V3}² = ${V1}${V3}²`, requires: ["step1", "step2"], reason: "" },
+                { id: "step4", text: `∠${V1}${V2}${V3} = 90°`, requires: ["step3"], reason: "Converse of Pyth. theorem" }
+            ];
+
+            currentQuestionData = {
+                prompt: `Question: In △${V1}${V2}${V3}, ${V1}${V2}=${s1}, ${V2}${V3}=${s2}, ${V1}${V3}=${hyp}. Prove ∠${V1}${V2}${V3} = 90°.`,
+                statements: statements
+            };
+
+            document.getElementById('canvas-space').innerHTML = svgHTML;
+            document.getElementById('q-prompt').innerText = currentQuestionData.prompt;
+            
+            const rowsContainer = document.getElementById('table-rows');
+            rowsContainer.innerHTML = '';
+
+            if (currentLevel === 1) {
+                document.getElementById('choices-area').style.display = 'none';
+                document.getElementById('instructions-prompt').innerText = "Instructions: Drag the statements and reasons into the correct order and make this proof valid.";
+                
+                let shuffledStatements = shuffleArray([...statements]);
+                let validReasons = statements.map(s => s.reason).filter(r => r !== "");
+                while(validReasons.length < 4) validReasons.push(""); 
+                let shuffledReasons = shuffleArray(validReasons);
+
+                for(let i=0; i<4; i++) {
+                    const s = shuffledStatements[i];
+                    const r = shuffledReasons[i];
+                    
+                    let sHTML = `<div class="drag-card" data-type="statement" data-id="${s.id}" data-value="${s.text}">${s.text}</div>`;
+                    let rHTML = r ? `<div class="drag-card" data-type="reason" data-value="${r}">${r}</div>` : '';
+
+                    rowsContainer.innerHTML += `
+                        <div class="proof-row" id="p-row-${i}">
+                            <div class="row-idx">${i+1}</div>
+                            <div class="drop-zone" data-type="statement" data-placeholder="Statement">${sHTML}</div>
+                            <div class="drop-zone" data-type="reason" data-placeholder="Reason">${rHTML}</div>
+                        </div>`;
+                }
+            } else {
+                document.getElementById('choices-area').style.display = 'flex';
+                document.getElementById('instructions-prompt').innerText = "Instructions: Choose the correct statements and reasons and put them in a correct order to form a valid proof.";
+
+                let poolStatements = [...statements];
+                
+                poolStatements.push({ id: "dist1", text: `${V1}${V2} + ${V2}${V3} = ${s1} + ${s2}`, isDistractor: true });
+                poolStatements.push({ id: "dist2", text: `∠${V1}${V3}${V2} = 90°`, isDistractor: true });
+                poolStatements.push({ id: "dist3", text: `${s1}² + ${s2}² = ${s1Sq + s2Sq}`, isDistractor: true });
+                poolStatements.push({ id: "dist4", text: `${hyp}² = ${hypSq}`, isDistractor: true });
+
+                const reasons = ["Given", "Converse of Pyth. theorem", "Pyth. theorem"];
+
+                for(let i=0; i<6; i++) {
+                    rowsContainer.innerHTML += `
+                        <div class="proof-row" id="p-row-${i}">
+                            <div class="row-idx">${i+1}</div>
+                            <div class="drop-zone" data-type="statement" data-placeholder="Drop Statement"></div>
+                            <div class="drop-zone" data-type="reason" data-placeholder="Drop Reason"></div>
+                        </div>`;
+                }
+
+                renderPoolPanel('statements-pool', shuffleArray(poolStatements), 'statement');
+                renderPoolPanel('reasons-pool', shuffleArray(reasons), 'reason');
+            }
+
+            initEnginePointerEvents();
+        }
+
+        function renderPoolPanel(id, items, type) {
+            const container = document.getElementById(id);
+            container.innerHTML = '';
+            items.forEach(item => {
+                const textVal = type === 'statement' ? item.text : item;
+                const itemId = type === 'statement' ? item.id : '';
+                container.innerHTML += `<div class="drag-card" data-type="${type}" data-id="${itemId}" data-value="${textVal}">${textVal}</div>`;
+            });
+        }
+
+        function initEnginePointerEvents() {
+            if(isEngineInitialized) return;
+            isEngineInitialized = true;
+
+            const ghost = document.getElementById('ghost-card');
+
+            document.addEventListener('pointerdown', (e) => {
+                const card = e.target.closest('.drag-card');
+                if (!card || card.classList.contains('used')) return;
+                
+                activeDraggedData = {
+                    type: card.getAttribute('data-type'),
+                    id: card.getAttribute('data-id'),
+                    value: card.getAttribute('data-value'),
+                    element: card,
+                    source: card.parentElement
+                };
+                
+                ghost.innerText = activeDraggedData.value;
+                ghost.style.display = 'block';
+                ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+                card.classList.add('dragging');
+            });
+
+            document.addEventListener('pointermove', (e) => {
+                if (!activeDraggedData) return;
+                ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+            });
+
+            document.addEventListener('pointerup', (e) => {
+                if (!activeDraggedData) return;
+                ghost.style.display = 'none';
+                activeDraggedData.element.classList.remove('dragging');
+
+                const targetElem = document.elementFromPoint(e.clientX, e.clientY);
+                const dropZone = targetElem ? targetElem.closest('.drop-zone') : null;
+
+                const isSourcePool = activeDraggedData.source.id === 'statements-pool' || activeDraggedData.source.id === 'reasons-pool';
+
+                if (dropZone && dropZone.getAttribute('data-type') === activeDraggedData.type) {
+                    dropZone.parentElement.classList.remove('correct-row');
+                    const existingCard = dropZone.querySelector('.drag-card');
+
+                    if (isSourcePool) {
+                        if (existingCard) {
+                            returnItemToPool(existingCard.getAttribute('data-value'), existingCard.getAttribute('data-type'));
+                            existingCard.remove();
+                        }
+                        
+                        const clone = activeDraggedData.element.cloneNode(true);
+                        clone.classList.remove('used', 'dragging');
+                        dropZone.appendChild(clone);
+                        
+                        if (activeDraggedData.type === 'statement') {
+                            activeDraggedData.element.classList.add('used');
+                        }
+                    } else {
+                        if (existingCard) {
+                            activeDraggedData.source.appendChild(existingCard); 
+                        }
+                        dropZone.appendChild(activeDraggedData.element);
+                    }
+                } else if (!isSourcePool && currentLevel === 2) {
+                    returnItemToPool(activeDraggedData.value, activeDraggedData.type);
+                    activeDraggedData.element.remove();
+                }
+
+                activeDraggedData = null;
+            });
+        }
+
+        function returnItemToPool(value, type) {
+            if (type === 'reason') return; 
+            
+            document.querySelectorAll('#choices-area .drag-card').forEach(card => {
+                if (card.getAttribute('data-value') === value && card.getAttribute('data-type') === type) {
+                    card.classList.remove('used');
+                }
+            });
+        }
+
+        function showModal(isCorrect) {
+            const modal = document.getElementById('feedback-modal');
+            const msg = document.getElementById('modal-message');
+            const btn = document.getElementById('modal-action-btn');
+            
+            modal.style.display = 'flex';
+            if(isCorrect) {
+                msg.innerText = "🎉 The proof is sound and valid!";
+                btn.innerText = "OK";
+                btn.onclick = () => { modal.style.display = 'none'; };
+            } else {
+                msg.innerText = "❌ The proof is incorrect. Please check your answers.";
+                btn.innerText = "Try Again";
+                btn.onclick = () => { modal.style.display = 'none'; };
+            }
+        }
+
+        function gradeProof() {
+            const rows = document.querySelectorAll('.proof-row');
+            let establishedStatementIds = [];
+            let validStepsCount = 0;
+            let hasErrors = false;
+
+            for(let i=0; i<rows.length; i++) {
+                const sCard = rows[i].children[1].querySelector('.drag-card');
+                const rCard = rows[i].children[2].querySelector('.drag-card');
+                
+                rows[i].classList.remove('correct-row');
+
+                if(!sCard && !rCard) continue;
+
+                if(!sCard) { hasErrors = true; continue; }
+
+                const sId = sCard.getAttribute('data-id');
+                const matchedStep = currentQuestionData.statements.find(s => s.id === sId);
+
+                if(!matchedStep) { hasErrors = true; continue; }
+
+                const isReasonRequired = matchedStep.reason !== "";
+                const rVal = rCard ? rCard.getAttribute('data-value') : null;
+
+                if (isReasonRequired && !rCard) { hasErrors = true; continue; }
+                if (!isReasonRequired && rCard) { hasErrors = true; continue; }
+
+                const dependenciesMet = matchedStep.requires.every(id => establishedStatementIds.includes(id));
+                const reasonMet = !isReasonRequired || (Array.isArray(matchedStep.reason) ? matchedStep.reason.includes(rVal) : (matchedStep.reason === rVal));
+
+                if(dependenciesMet && reasonMet) {
+                    rows[i].classList.add('correct-row');
+                    establishedStatementIds.push(sId);
+                    validStepsCount++;
+                } else {
+                    hasErrors = true;
+                }
+            }
+
+            if (!hasErrors && validStepsCount === 4) { 
+                showModal(true);
+            } else {
+                rows.forEach(row => row.classList.remove('correct-row'));
+                showModal(false);
+            }
+        }
+
+        window.onload = generateNewQuestion;
+    </script>
+</body>
+</html>
